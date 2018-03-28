@@ -1,0 +1,25 @@
+---
+
+workshop_prefix: ofo
+workshop_name: "{{ workshop_prefix }}_{{ workshop_uid }}"
+
+ec2_key_name: "{{ workshop_name }}"
+ec2_keys_dir: "{{ playbook_dir }}/keys"
+ec2_private_key_file: "{{ ec2_keys_dir }}/{{ ec2_key_name }}.pem"
+
+ec2_vpc_name: "{{ workshop_name }}"
+ec2_vpc_cidr_block: 10.37.0.0/16
+
+ec2_ami_id:
+  us-east-1:
+    ami: ami-c998b6b2
+  us-east-2:
+    ami: ami-cfdafaaa
+  us-west-1:
+    ami: ami-66eec506
+  us-west-2:
+    ami: ami-9fa343e7
+
+provision_infra_action: provision
+
+ec2_wait: no

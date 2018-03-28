@@ -1,0 +1,59 @@
+---
+
+- name: Create ssh security group
+  ec2_group:
+    name: "{{ workshop_name }}_ssh"
+    description: SSH security group
+    vpc_id: "{{ ec2_vpc_id }}"
+    region: "{{ ec2_region }}"
+    rules:
+      - proto: tcp
+        ports:
+          - 22
+        cidr_ip: 0.0.0.0/0
+    tags:
+      Name: "{{ workshop_name }}_ssh"
+      WorkshopName: "{{ workshop_name }}"
+    state: present
+  register: create_ec2_group_ssh
+
+- name: Create web security group
+  ec2_group:
+    name: "{{ workshop_name }}_web"
+    description: Web security group
+    vpc_id: "{{ ec2_vpc_id }}"
+    region: "{{ ec2_region }}"
+    rules:
+      - proto: tcp
+        ports:
+          - 80
+          - 443
+        cidr_ip: 0.0.0.0/0
+    tags:
+      Name: "{{ workshop_name }}_web"
+      WorkshopName: "{{ workshop_name }}"
+    state: present
+  register: create_ec2_group_web
+
+- name: Create internal communication security group
+  ec2_group:
+    name: "{{ workshop_name }}_internal"
+    description: Internal communication security group
+    vpc_id: "{{ ec2_vpc_id }}"
+    region: "{{ ec2_region }}"
+    purge_rules: no
+    tags:
+      Name: "{{ workshop_name }}_internal"
+      WorkshopName: "{{ workshop_name }}"
+    state: present
+  register: create_ec2_group_internal
+
+- name: Add rules for internal communication security group
+  ec2_group:
+    name: "{{ create_ec2_group_internal.group_name }}"
+    description: "{{ create_ec2_group_internal.description }}"
+    group_id: "{{ create_ec2_group_internal.group_id }}"
+    region: "{{ ec2_region }}"
+    rules:
+      - proto: all
+        group_id: "{{ create_ec2_group_internal.group_id }}"

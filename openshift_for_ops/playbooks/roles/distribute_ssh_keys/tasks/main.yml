@@ -1,0 +1,16 @@
+---
+
+- name: Create .ssh directory
+  file:
+    path: '~/.ssh'
+    owner: '{{ ansible_user_uid }}'
+    group: '{{ ansible_user_gid }}'
+    mode: 0700
+
+- name: Copy SSH key to node
+  copy:
+    src: '{{ ec2_private_key_file }}'
+    dest: '~/.ssh/id_rsa'
+    owner: '{{ ansible_user_uid }}'
+    group: '{{ ansible_user_gid }}'
+    mode: 0600

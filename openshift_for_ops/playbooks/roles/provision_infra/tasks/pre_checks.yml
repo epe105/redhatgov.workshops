@@ -1,0 +1,17 @@
+---
+
+- name: Check that required variables are defined
+  assert:
+    that: "{{ item }} is defined"
+  with_items:
+    - aws_access_key
+    - aws_secret_key
+    - ec2_region
+    - ec2_vpc_id
+    - ec2_vpc_subnet_id
+    - route53_hosted_zone
+    - rhsm_username
+    - rhsm_password
+    - rhsm_pool
+    - num_students
+    - workshop_uid

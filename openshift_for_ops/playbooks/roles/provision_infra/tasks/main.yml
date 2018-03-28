@@ -1,0 +1,7 @@
+---
+
+- include_tasks: provision.yml
+  when: provision_infra_action != 'teardown'
+
+- include_tasks: teardown.yml
+  when: provision_infra_action == 'teardown'

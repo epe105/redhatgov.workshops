@@ -1,0 +1,28 @@
+---
+
+- hosts: localhost
+  roles:
+    - provision_infra
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ aws_access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ aws_secret_key }}"
+    AWS_REGION: "{{ ec2_region }}"
+
+
+- hosts: instructor
+  roles:
+    - ec2_change_hostnames
+    - ec2_rhsm_subscribe
+    - openshift_motd
+    - openshift_reposync
+    - workshop_nfs_server
+    - useful_packages
+
+
+- hosts: student_nodes
+  roles:
+    - ec2_change_hostnames
+    - distribute_ssh_keys
+    - openshift_repos
+    - openshift_motd
+    - useful_packages

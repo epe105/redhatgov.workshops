@@ -1,0 +1,12 @@
+---
+
+- hosts: localhost
+
+  roles:
+    - role: provision_infra
+      provision_infra_action: teardown
+
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ aws_access_key }}"
+    AWS_SECRET_ACCESS_KEY: "{{ aws_secret_key }}"
+    AWS_REGION: "{{ ec2_region }}"

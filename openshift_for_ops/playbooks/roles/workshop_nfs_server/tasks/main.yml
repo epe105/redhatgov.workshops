@@ -1,0 +1,49 @@
+---
+
+- name: Check that required variables are defined
+  assert:
+    that: "{{ item }} is defined"
+  with_items:
+    - num_students
+
+- name: Install nfs server
+  yum:
+    name: nfs-utils
+    state: present
+  become: yes
+
+- name: Start and enable nfs server
+  service:
+    name: nfs-server
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Configure nfs server exports
+  copy:
+    src: workshop.exports
+    dest: /etc/exports.d/workshop.exports
+    owner: root
+    group: root
+    mode: 0644
+  register: nfs_exports_config
+  become: yes
+
+- name: Restart nfs server
+  service:
+    name: nfs-server
+    state: restarted
+  when: nfs_exports_config.changed
+  become: yes
+
+- name: Create student exports
+  file:
+    path: /exports/student{{ "%02d" % item[0]|int }}/{{ item[1] }}
+    owner: nfsnobody
+    group: nfsnobody
+    mode: 0777
+    state: directory
+  with_nested:
+    - '{{ lookup("sequence", "count={{ num_students }}", wantlist=True) }}'
+    - [ 'metrics', 'logging', 'registry', 'pv01', 'pv02', 'pv03', 'pv04', 'pv05' ]
+  become: yes

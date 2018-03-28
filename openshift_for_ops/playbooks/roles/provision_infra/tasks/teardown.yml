@@ -1,0 +1,11 @@
+---
+
+- import_tasks: pre_checks_teardown.yml
+
+- import_tasks: route53_teardown.yml
+
+- import_tasks: ec2_instances_teardown.yml
+
+- import_tasks: ec2_security_groups_teardown.yml
+
+- import_tasks: ec2_key_teardown.yml

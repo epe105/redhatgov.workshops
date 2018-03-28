@@ -1,0 +1,13 @@
+---
+
+- name: Update cloud-config to preserve hostname
+  lineinfile:
+    dest: /etc/cloud/cloud.cfg
+    regexp: '^preserve_hostname'
+    line: 'preserve_hostname: true'
+  become: yes
+
+- name: Set hostname
+  hostname:
+    name: '{{ inventory_hostname }}'
+  become: yes

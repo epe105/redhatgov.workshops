@@ -1,0 +1,34 @@
+---
+
+- name: Delete ssh security group
+  ec2_group:
+    name: "{{ workshop_name }}_ssh"
+    description: SSH security group
+    vpc_id: "{{ ec2_vpc_id }}"
+    region: "{{ ec2_region }}"
+    tags:
+      Name: "{{ workshop_name }}_ssh"
+      WorkshopName: "{{ workshop_name }}"
+    state: absent
+
+- name: Delete web security group
+  ec2_group:
+    name: "{{ workshop_name }}_web"
+    description: Web security group
+    vpc_id: "{{ ec2_vpc_id }}"
+    region: "{{ ec2_region }}"
+    tags:
+      Name: "{{ workshop_name }}_web"
+      WorkshopName: "{{ workshop_name }}"
+    state: absent
+
+- name: Delete internal communication security group
+  ec2_group:
+    name: "{{ workshop_name }}_internal"
+    description: Internal communication security group
+    vpc_id: "{{ ec2_vpc_id }}"
+    region: "{{ ec2_region }}"
+    tags:
+      Name: "{{ workshop_name }}_internal"
+      WorkshopName: "{{ workshop_name }}"
+    state: absent

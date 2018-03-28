@@ -1,0 +1,159 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  VpcCidrBlock:
+    Type: String
+  VpcName:
+    Type: String
+  Region:
+    Type: String
+Conditions:
+  CreateDhcpOpts: !Equals
+    - !Ref Region
+    - us-east-1
+Resources:
+  Vpc:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Ref VpcCidrBlock
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+  VpcInternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties: {}
+  VpcGA:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      InternetGatewayId: !Ref VpcInternetGateway
+      VpcId: !Ref Vpc
+  VpcRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref Vpc
+  PrivateRouteTable:
+    DependsOn:
+      - Nat
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref Vpc
+  VPCRouteInternetGateway:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      GatewayId: !Ref VpcInternetGateway
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref VpcRouteTable
+  EIP:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  Route:
+    DependsOn:
+      - Nat
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref Nat
+  PublicSubnet:
+    Type: 'AWS::EC2::Subnet'
+    DependsOn:
+      - Vpc
+    Properties:
+      CidrBlock: !Ref VpcCidrBlock
+      Tags:
+        - Key: Name
+          Value: PublicSubnet
+        - Key: ProjectName
+          Value: !Ref 'AWS::StackName'
+      MapPublicIpOnLaunch: 'true'
+      VpcId: !Ref Vpc
+  PublicSubnetRTA:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref VpcRouteTable
+      SubnetId: !Ref PublicSubnet
+  Nat:
+    DependsOn:
+      - EIP
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt
+        - EIP
+        - AllocationId
+      SubnetId: !Ref PublicSubnet
+  DHCPOpts:
+    Type: 'AWS::EC2::DHCPOptions'
+    Condition: CreateDhcpOpts
+    Properties:
+      DomainName: ec2.internal
+      DomainNameServers:
+        - AmazonProvidedDNS
+  AssociateOpts:
+    Type: 'AWS::EC2::VPCDHCPOptionsAssociation'
+    Condition: CreateDhcpOpts
+    Properties:
+      VpcId: !Ref Vpc
+      DhcpOptionsId: !Ref DHCPOpts
+  SshSg:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: "{{ workshop_name }}_ssh"
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: "{{ workshop_name }}_ssh"
+        - Key: WorkshopName
+          Value: "{{ workshop_name }}"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+  WebSg:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: "{{ workshop_name }}_web"
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: "{{ workshop_name }}_web"
+        - Key: WorkshopName
+          Value: "{{ workshop_name }}"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+  InternalSg:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: "{{ workshop_name }}_internal"
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: "{{ workshop_name }}_internal"
+        - Key: WorkshopName
+          Value: "{{ workshop_name }}"
+  InternalSgIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    DependsOn:
+      - InternalSg
+    Properties:
+      IpProtocol: -1
+      GroupId: !GetAtt
+        - InternalSg
+        - GroupId
+      SourceSecurityGroupId: !GetAtt
+        - InternalSg
+        - GroupId
+
+Outputs:
+  StackVpc:
+    Value: !Ref Vpc
+    Description: VPC that was created

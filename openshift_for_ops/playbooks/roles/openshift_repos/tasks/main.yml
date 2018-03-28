@@ -1,0 +1,26 @@
+---
+
+- name: Disable all repos
+  command: 'yum-config-manager --disable \*'
+  become: yes
+
+- name: Enable RHUI repos
+  command: yum-config-manager --enable "{{ item }}"
+  with_items:
+    - rhui-REGION-rhel-server-releases
+    - rhui-REGION-rhel-server-extras
+  become: yes
+
+- name: Add OpenShift repos
+  yum_repository:
+    name: '{{ item }}'
+    description: '{{ item }}'
+    baseurl: http://{{ instructor_node.tags.WorkshopPublicHostname }}/repos/{{ item }}
+    enabled: yes
+    gpgcheck: yes
+    gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+    state: present
+  with_items:
+    - rhel-7-server-ose-3.6-rpms
+    - rhel-7-fast-datapath-rpms
+  become: yes

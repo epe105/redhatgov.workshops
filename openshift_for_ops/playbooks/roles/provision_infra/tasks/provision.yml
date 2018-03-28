@@ -1,0 +1,11 @@
+---
+
+- import_tasks: pre_checks.yml
+
+- import_tasks: ec2_key.yml
+
+- import_tasks: ec2_security_groups.yml
+
+- import_tasks: ec2_instances.yml
+
+- import_tasks: route53.yml

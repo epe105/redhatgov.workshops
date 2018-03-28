@@ -1,0 +1,87 @@
+---
+
+- name: Enable subscription-manager YUM plugin
+  lineinfile:
+    dest: /etc/yum/pluginconf.d/subscription-manager.conf
+    regexp: '^enabled='
+    line: 'enabled=1'
+  register: enable_subscription_manager_plugin
+  become: yes
+
+- name: Disable amazon-id YUM plugin
+  lineinfile:
+    dest: /etc/yum/pluginconf.d/amazon-id.conf
+    regexp: '^enabled='
+    line: 'enabled=0'
+  register: disable_amazon_id_plugin
+  become: yes
+
+- name: Disable rhui-lb YUM plugin
+  lineinfile:
+    dest: /etc/yum/pluginconf.d/rhui-lb.conf
+    regexp: '^enabled='
+    line: 'enabled=0'
+  register: disable_rhui_lb_plugin
+  become: yes
+
+- name: Stop choose_repo service
+  service:
+    name: choose_repo
+    state: stopped
+  become: yes
+
+- name: Disable choose_repo service
+  service:
+    name: choose_repo
+    enabled: no
+  become: yes
+
+- name: Disable all repos
+  command: 'yum-config-manager --disable \*'
+  when: >
+    enable_subscription_manager_plugin.changed
+    or disable_amazon_id_plugin.changed
+    or disable_rhui_lb_plugin.changed
+  become: yes
+
+- name: Register Red Hat system
+  redhat_subscription:
+    username: '{{ rhsm_username }}'
+    password: '{{ rhsm_password }}'
+    autosubscribe: no
+    state: present
+  become: yes
+
+- name: Get subscription status
+  command: 'subscription-manager status'
+  register: subscription_status
+  failed_when: false
+  changed_when: false
+  become: yes
+
+- name: Attach Red Hat subscription
+  command: 'subscription-manager attach --pool "{{ rhsm_pool }}"'
+  when: '"Overall Status: Current" not in subscription_status.stdout'
+  register: subscription_attach
+  become: yes
+
+- name: Disable all repos
+  command: 'subscription-manager repos --disable "*"'
+  when: subscription_attach.changed
+  become: yes
+
+- name: Get enabled repos
+  command: 'subscription-manager repos --list-enabled'
+  register: enabled_repos
+  changed_when: false
+  become: yes
+
+- name: Enable required repos (>=3.5)
+  command: 'subscription-manager repos --enable "{{ item }}"'
+  when: 'ocp_version >= 3.5 and item not in enabled_repos.stdout'
+  with_items:
+    - rhel-7-server-rpms
+    - rhel-7-server-extras-rpms
+    - rhel-7-server-ose-{{ ocp_version }}-rpms
+    - rhel-7-fast-datapath-rpms
+  become: yes

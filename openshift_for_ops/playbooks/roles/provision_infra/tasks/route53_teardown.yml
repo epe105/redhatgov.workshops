@@ -1,0 +1,95 @@
+---
+
+- ec2_instance_facts:
+    filters:
+      "tag:WorkshopName": "{{ workshop_name }}"
+      "tag:WorkshopNodeType": "instructor"
+  register: facts_ec2_instances_instructor
+
+- name: Get instructor DNS entry
+  route53:
+    record: "{{ item.tags.WorkshopPublicHostname }}"
+    zone: "{{ route53_hosted_zone }}"
+    type: A
+    state: get
+  with_items: "{{ facts_ec2_instances_instructor.instances }}"
+  register: route53_instructor_entires
+
+- ec2_instance_facts:
+    filters:
+      "tag:WorkshopName": "{{ workshop_name }}"
+      "tag:WorkshopNodeType": "bastion"
+  register: facts_ec2_instances_bastion
+
+- name: Get bastion public DNS entries
+  route53:
+    record: "{{ item.tags.WorkshopPublicHostname }}"
+    zone: "{{ route53_hosted_zone }}"
+    type: A
+    state: get
+  with_items: "{{ facts_ec2_instances_bastion.instances }}"
+  register: route53_bastion_public_entires
+
+- ec2_instance_facts:
+    filters:
+      "tag:WorkshopName": "{{ workshop_name }}"
+      "tag:WorkshopNodeType": "master"
+  register: facts_ec2_instances_master
+
+- name: Get master public DNS entries
+  route53:
+    record: "{{ item.tags.WorkshopPublicHostname }}"
+    zone: "{{ route53_hosted_zone }}"
+    type: A
+    state: get
+  with_items: "{{ facts_ec2_instances_master.instances }}"
+  register: route53_master_public_entires
+
+- ec2_instance_facts:
+    filters:
+      "tag:WorkshopName": "{{ workshop_name }}"
+      "tag:WorkshopNodeType": "infra"
+  register: facts_ec2_instances_infra
+
+- name: Get infra wildcard DNS entries
+  route53:
+    record: "{{ item.tags.WorkshopWildcardHostname }}"
+    zone: "{{ route53_hosted_zone }}"
+    type: A
+    state: get
+  with_items: "{{ facts_ec2_instances_infra.instances }}"
+  register: route53_infra_wildcard_entires
+
+- ec2_instance_facts:
+    filters:
+      "tag:WorkshopName": "{{ workshop_name }}"
+      "tag:WorkshopNodeType": "app"
+  register: facts_ec2_instances_app
+
+- name: Get nodes private DNS entries
+  route53:
+    record: "{{ item.tags.WorkshopPrivateHostname }}"
+    zone: "{{ route53_hosted_zone }}"
+    type: A
+    state: get
+  with_items:
+    - "{{ facts_ec2_instances_master.instances }}"
+    - "{{ facts_ec2_instances_infra.instances }}"
+    - "{{ facts_ec2_instances_app.instances }}"
+  register: route53_nodes_private_entires
+
+- name: Delete DNS entries
+  route53:
+    record: "{{ item.set.record }}"
+    zone: "{{ route53_hosted_zone }}"
+    ttl: "{{ item.set.ttl }}"
+    type: "{{ item.set.type }}"
+    value: "{{ item.set.value }}"
+    state: absent
+  with_items:
+    - "{{ route53_instructor_entires.results }}"
+    - "{{ route53_bastion_public_entires.results }}"
+    - "{{ route53_master_public_entires.results }}"
+    - "{{ route53_infra_wildcard_entires.results }}"
+    - "{{ route53_nodes_private_entires.results }}"
+  when: item.set.record is defined

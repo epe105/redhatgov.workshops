@@ -1,0 +1,28 @@
+#cloud-config
+password: openshift123
+ssh_pwauth: true
+chpasswd:
+  expire: false
+
+cloud_config_modules:
+- disk_setup
+- mounts
+
+fs_setup:
+- label: nfs_storage
+  filesystem: xfs
+  device: /dev/xvdb
+  partition: auto
+
+runcmd:
+- mkdir -p /exports
+
+mounts:
+- [ /dev/xvdb, /exports, xfs, "defaults" ]
+
+users:
+- default
+
+system_info:
+  default_user:
+    name: ec2-user

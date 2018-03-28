@@ -1,0 +1,43 @@
+---
+
+- name: Create directory to store EC2 key pairs
+  file:
+    path: "{{ ec2_keys_dir }}"
+    state: directory
+    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_user_gid }}"
+    mode: 0700
+
+- name: Get EC2 private key file status
+  stat:
+    path: "{{ ec2_private_key_file }}"
+  register: stat_ec2_private_key_file
+
+- name: Create EC2 key pair
+  ec2_key:
+    name: "{{ ec2_key_name }}"
+    region: "{{ ec2_region }}"
+    state: present
+    force: no
+  register: create_ec2_key
+
+- name: Fail if EC2 key pair already exists
+  fail:
+    msg: >
+      An EC2 key pair with the name {{ ec2_key_name }} already exists but
+      cannot be found at {{ ec2_private_key_file }}. This usually indicates
+      that an environment with the workshop_uid "{{ workshop_uid }}"
+      already exists. To play it safe, we are going to fail here to ensure we
+      don't accidentally blow away or overwrite something we shouldn't.
+  when:
+    - not create_ec2_key.changed
+    - not stat_ec2_private_key_file.stat.exists
+
+- name: Save the generated EC2 private key
+  copy:
+    dest: "{{ ec2_private_key_file }}"
+    content: "{{ create_ec2_key.key.private_key }}"
+    owner: "{{ ansible_user_uid }}"
+    group: "{{ ansible_user_gid }}"
+    mode: 0600
+  when: create_ec2_key.changed

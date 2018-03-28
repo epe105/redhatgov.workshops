@@ -1,0 +1,72 @@
+---
+
+- name: Install required packages
+  yum:
+    name: '{{ item }}'
+    state: present
+  with_items:
+    - yum-utils
+    - createrepo
+  become: yes
+
+- name: Create mount directory
+  file:
+    path: /mnt/repos
+    owner: root
+    group: root
+    mode: 0755
+    state: directory
+  become: yes
+
+- name: Check if repos are synced
+  stat:
+    path: /mnt/repos/{{ item }}
+  with_items:
+    - rhel-7-server-ose-{{ ocp_version }}-rpms
+    - rhel-7-fast-datapath-rpms
+  register: st_repos
+  become: yes
+
+- name: Sync repos
+  command: reposync --gpgcheck -l --repoid={{ item.item }} --download_path=/mnt/repos --downloadcomps --download-metadata
+  with_items: '{{ st_repos.results }}'
+  become: yes
+
+- name: Create repos
+  command: createrepo -v /mnt/repos/{{ item.item }}/ -g comps.xml
+  args:
+    chdir: /mnt/repos/{{ item.item }}
+  with_items: '{{ st_repos.results }}'
+  become: yes
+
+- name: Install httpd
+  yum:
+    name: httpd
+    state: present
+  become: yes
+
+- name: Start and enable httpd
+  service:
+    name: httpd
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Set selinux policy for repos to be served over httpd
+  sefcontext:
+    target: '/mnt/repos(/.*)?'
+    setype: httpd_sys_content_t
+    reload: yes
+    state: present
+  become: yes
+
+- name: Apply selinux policy for repos
+  command: restorecon -Rv /mnt/repos
+  become: yes
+
+- name: Symlink to the repos
+  file:
+    src: /mnt/repos
+    dest: /var/www/html/repos
+    state: link
+  become: yes

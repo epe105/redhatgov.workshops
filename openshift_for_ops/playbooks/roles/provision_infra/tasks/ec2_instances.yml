@@ -1,0 +1,289 @@
+---
+
+- name: Create instructor instance
+  ec2:
+    region: "{{ ec2_region }}"
+    assign_public_ip: yes
+    group_id:
+      - "{{ create_ec2_group_internal.group_id }}"
+      - "{{ create_ec2_group_web.group_id }}"
+      - "{{ create_ec2_group_ssh.group_id }}"
+    image: "{{ ec2_ami_id[ec2_region].ami }}"
+    instance_type: "{{ ec2_instance_types.instructor }}"
+    key_name: "{{ ec2_key_name }}"
+    vpc_subnet_id: "{{ ec2_vpc_subnet_id }}"
+    user_data: "{{ lookup('file', 'user_data_instructor.yml') }}"
+    volumes:
+      - device_name: /dev/sda1
+        volume_type: gp2
+        volume_size: "{{ ec2_instance_volume_size.instructor.root }}"
+        delete_on_termination: yes
+      - device_name: /dev/xvdb
+        volume_type: gp2
+        volume_size: "{{ ec2_instance_volume_size.instructor.nfs }}"
+        delete_on_termination: yes
+    exact_count: "{{ ec2_instance_count.instructor }}"
+    count_tag:
+      Name: "{{ workshop_name }}_instructor"
+      WorkshopName: "{{ workshop_name }}"
+    instance_tags:
+      Name: "{{ workshop_name }}_instructor"
+      WorkshopName: "{{ workshop_name }}"
+      WorkshopNodeType: instructor
+      WorkshopPublicHostname: instructor.{{ route53_subdomain }}
+    wait: yes  # We must wait for this node to get a public IP
+  register: create_ec2_instances_intructor
+
+- name: Create bastion instances
+  ec2:
+    region: "{{ ec2_region }}"
+    assign_public_ip: yes
+    group_id:
+      - "{{ create_ec2_group_internal.group_id }}"
+      - "{{ create_ec2_group_ssh.group_id }}"
+    image: "{{ ec2_ami_id[ec2_region].ami }}"
+    instance_type: "{{ ec2_instance_types.bastion }}"
+    key_name: "{{ ec2_key_name }}"
+    vpc_subnet_id: "{{ ec2_vpc_subnet_id }}"
+    user_data: "{{ lookup('file', 'user_data_bastion.yml') }}"
+    volumes:
+      - device_name: /dev/sda1
+        volume_type: gp2
+        volume_size: "{{ ec2_instance_volume_size.bastion.root }}"
+        delete_on_termination: yes
+      - device_name: /dev/xvdb
+        volume_type: gp2
+        volume_size: "{{ ec2_instance_volume_size.bastion.docker }}"
+        delete_on_termination: yes
+    exact_count: "{{ ec2_instance_count.bastion }}"
+    count_tag:
+      Name: "{{ workshop_name }}_student{{ '%02d' % item|int }}_bastion"
+      WorkshopName: "{{ workshop_name }}"
+    instance_tags:
+      Name: "{{ workshop_name }}_student{{ '%02d' % item|int }}_bastion"
+      WorkshopName: "{{ workshop_name }}"
+      WorkshopStudent: student{{ '%02d' % item|int }}
+      WorkshopNodeType: bastion
+      WorkshopPublicHostname: bastion.student{{ '%02d' % item|int }}.{{ route53_subdomain }}
+    wait: "{{ ec2_wait }}"
+  with_items: "{{ lookup('sequence', 'count={{ num_students }}', wantlist=True) }}"
+  register: create_ec2_instances_bastion
+
+- name: Create master instances
+  ec2:
+    region: "{{ ec2_region }}"
+    assign_public_ip: yes
+    group_id:
+      - "{{ create_ec2_group_internal.group_id }}"
+      - "{{ create_ec2_group_web.group_id }}"
+    image: "{{ ec2_ami_id[ec2_region].ami }}"
+    instance_type: "{{ ec2_instance_types.master }}"
+    key_name: "{{ ec2_key_name }}"
+    vpc_subnet_id: "{{ ec2_vpc_subnet_id }}"
+    user_data: "{{ lookup('file', 'user_data_master.yml') }}"
+    volumes:
+      - device_name: /dev/sda1
+        volume_type: gp2
+        volume_size: "{{ ec2_instance_volume_size.master.root }}"
+        delete_on_termination: yes
+      - device_name: /dev/xvdb
+        volume_type: gp2
+        volume_size: "{{ ec2_instance_volume_size.master.docker }}"
+        delete_on_termination: yes
+    exact_count: "{{ ec2_instance_count.master }}"
+    count_tag:
+      Name: "{{ workshop_name }}_student{{ '%02d' % item|int }}_master"
+      WorkshopName: "{{ workshop_name }}"
+    instance_tags:
+      Name: "{{ workshop_name }}_student{{ '%02d' % item|int }}_master"
+      WorkshopName: "{{ workshop_name }}"
+      WorkshopStudent: student{{ '%02d' % item|int }}
+      WorkshopNodeType: master
+      WorkshopPublicHostname: student{{ '%02d' % item|int }}.{{ route53_subdomain }}
+      WorkshopPrivateHostname: master.student{{ '%02d' % item|int }}.{{ route53_subdomain }}
+    wait: "{{ ec2_wait }}"
+  with_items: "{{ lookup('sequence', 'count={{ num_students }}', wantlist=True) }}"
+  register: create_ec2_instances_master
+
+- name: Create infra instances
+  ec2:
+    region: "{{ ec2_region }}"
+    assign_public_ip: yes
+    group_id:
+      - "{{ create_ec2_group_internal.group_id }}"
+      - "{{ create_ec2_group_web.group_id }}"
+    image: "{{ ec2_ami_id[ec2_region].ami }}"
+    instance_type: "{{ ec2_instance_types.infra }}"
+    key_name: "{{ ec2_key_name }}"
+    vpc_subnet_id: "{{ ec2_vpc_subnet_id }}"
+    user_data: "{{ lookup('file', 'user_data_node.yml') }}"
+    volumes:
+      - device_name: /dev/sda1
+        volume_type: gp2
+        volume_size: "{{ ec2_instance_volume_size.infra.root }}"
+        delete_on_termination: yes
+      - device_name: /dev/xvdb
+        volume_type: gp2
+        volume_size: "{{ ec2_instance_volume_size.infra.docker }}"
+        delete_on_termination: yes
+    exact_count: "{{ ec2_instance_count.infra }}"
+    count_tag:
+      Name: "{{ workshop_name }}_student{{ '%02d' % item|int }}_infra"
+      WorkshopName: "{{ workshop_name }}"
+    instance_tags:
+      Name: "{{ workshop_name }}_student{{ '%02d' % item|int }}_infra"
+      WorkshopName: "{{ workshop_name }}"
+      WorkshopStudent: student{{ '%02d' % item|int }}
+      WorkshopNodeType: infra
+      WorkshopPrivateHostname: infra.student{{ '%02d' % item|int }}.{{ route53_subdomain }}
+      WorkshopWildcardHostname: "*.apps.student{{ '%02d' % item|int }}.{{ route53_subdomain }}"
+    wait: "{{ ec2_wait }}"
+  with_items: "{{ lookup('sequence', 'count={{ num_students }}', wantlist=True) }}"
+  register: create_ec2_instances_infra
+
+- name: Create app instances
+  ec2:
+    region: "{{ ec2_region }}"
+    assign_public_ip: yes
+    group_id:
+      - "{{ create_ec2_group_internal.group_id }}"
+      - "{{ create_ec2_group_web.group_id }}"
+    image: "{{ ec2_ami_id[ec2_region].ami }}"
+    instance_type: "{{ ec2_instance_types.app }}"
+    key_name: "{{ ec2_key_name }}"
+    vpc_subnet_id: "{{ ec2_vpc_subnet_id }}"
+    user_data: "{{ lookup('file', 'user_data_node.yml') }}"
+    volumes:
+      - device_name: /dev/sda1
+        volume_type: gp2
+        volume_size: "{{ ec2_instance_volume_size.app.root }}"
+        delete_on_termination: yes
+      - device_name: /dev/xvdb
+        volume_type: gp2
+        volume_size: "{{ ec2_instance_volume_size.app.docker }}"
+        delete_on_termination: yes
+    exact_count: 1
+    count_tag:
+      Name: "{{ workshop_name }}_student{{ '%02d' % item.0|int }}_app{{ '%02d' % item.1|int }}"
+      WorkshopName: "{{ workshop_name }}"
+    instance_tags:
+      Name: "{{ workshop_name }}_student{{ '%02d' % item.0|int }}_app{{ '%02d' % item.1|int }}"
+      WorkshopName: "{{ workshop_name }}"
+      WorkshopStudent: student{{ '%02d' % item.0|int }}
+      WorkshopNodeType: app
+      WorkshopPrivateHostname: app{{ '%02d' % item.1|int }}.student{{ '%02d' % item.0|int }}.{{ route53_subdomain }}
+    wait: "{{ ec2_wait }}"
+  with_nested:
+    - "{{ lookup('sequence', 'count={{ num_students }}', wantlist=True) }}"
+    - "{{ lookup('sequence', 'count={{ ec2_instance_count.app }}', wantlist=True) }}"
+  register: create_ec2_instances_app
+
+- name: Get instructor node facts
+  ec2_instance_facts:
+    instance_ids: "{{ create_ec2_instances_intructor.tagged_instances | map(attribute='id') | list }}"
+  register: facts_instructor_nodes
+
+- name: Save instructor node
+  set_fact:
+    instructor_node: "{{ facts_instructor_nodes.instances.0 }}"
+
+- name: Save bastion nodes
+  set_fact:
+    bastion_nodes: "{{ bastion_nodes|default([]) }} + [ {{ item.1 }} ]"
+  with_subelements:
+    - "{{ create_ec2_instances_bastion.results }}"
+    - tagged_instances
+
+- name: Save master nodes
+  set_fact:
+    master_nodes: "{{ master_nodes|default([]) }} + [ {{ item.1 }} ]"
+  with_subelements:
+    - "{{ create_ec2_instances_master.results }}"
+    - tagged_instances
+
+- name: Save infra nodes
+  set_fact:
+    infra_nodes: "{{ infra_nodes|default([]) }} + [ {{ item.1 }} ]"
+  with_subelements:
+    - "{{ create_ec2_instances_infra.results }}"
+    - tagged_instances
+
+- name: Save app nodes
+  set_fact:
+    app_nodes: "{{ app_nodes|default([]) }} + [ {{ item.1 }} ]"
+  with_subelements:
+    - "{{ create_ec2_instances_app.results }}"
+    - tagged_instances
+
+- name: Add instructor node to inventory
+  add_host:
+    name: instructor
+    ansible_host: "{{ instructor_node.public_ip_address }}"
+    ansible_user: ec2-user
+    ansible_ssh_private_key_file: "{{ ec2_private_key_file }}"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no
+
+- name: Add bastion nodes to inventory
+  add_host:
+    name: "{{ item.tags.WorkshopPublicHostname }}"
+    groups: student_nodes,bastion_nodes
+    ansible_host: "{{ item.private_ip }}"
+    ansible_user: ec2-user
+    ansible_ssh_private_key_file: "{{ ec2_private_key_file }}"
+    ansible_ssh_common_args: >-
+      -o ProxyCommand="ssh -i {{ ec2_private_key_file }} -W %h:%p -q ec2-user@{{ instructor_node.public_ip_address }}"
+      -o StrictHostKeyChecking=no
+  with_items: "{{ bastion_nodes }}"
+
+- name: Add master nodes to inventory
+  add_host:
+    name: "{{ item.tags.WorkshopPrivateHostname }}"
+    groups: student_nodes,master_nodes
+    ansible_host: "{{ item.private_ip }}"
+    ansible_user: ec2-user
+    ansible_ssh_private_key_file: "{{ ec2_private_key_file }}"
+    ansible_ssh_common_args: >-
+      -o ProxyCommand="ssh -i {{ ec2_private_key_file }} -W %h:%p -q ec2-user@{{ instructor_node.public_ip_address }}"
+      -o StrictHostKeyChecking=no
+  with_items: "{{ master_nodes }}"
+
+- name: Add infra nodes to inventory
+  add_host:
+    name: "{{ item.tags.WorkshopPrivateHostname }}"
+    groups: student_nodes,infra_nodes
+    ansible_host: "{{ item.private_ip }}"
+    ansible_user: ec2-user
+    ansible_ssh_private_key_file: "{{ ec2_private_key_file }}"
+    ansible_ssh_common_args: >-
+      -o ProxyCommand="ssh -i {{ ec2_private_key_file }} -W %h:%p -q ec2-user@{{ instructor_node.public_ip_address }}"
+      -o StrictHostKeyChecking=no
+  with_items: "{{ infra_nodes }}"
+
+- name: Add app nodes to inventory
+  add_host:
+    name: "{{ item.tags.WorkshopPrivateHostname }}"
+    groups: student_nodes,app_nodes
+    ansible_host: "{{ item.private_ip }}"
+    ansible_user: ec2-user
+    ansible_ssh_private_key_file: "{{ ec2_private_key_file }}"
+    ansible_ssh_common_args: >-
+      -o ProxyCommand="ssh -i {{ ec2_private_key_file }} -W %h:%p -q ec2-user@{{ instructor_node.public_ip_address }}"
+      -o StrictHostKeyChecking=no
+  with_items: "{{ app_nodes }}"
+
+- name: Wait for instructor to boot
+  wait_for:
+    host: "{{ instructor_node.public_ip_address }}"
+    port: 22
+    delay: 10
+    search_regex: OpenSSH
+  delegate_to: localhost
+
+- name: Wait for nodes to boot
+  wait_for:
+    host: "{{ hostvars[item].ansible_host }}"
+    port: 22
+    search_regex: OpenSSH
+  delegate_to: instructor
+  with_items: "{{ groups['student_nodes'] }}"

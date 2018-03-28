@@ -1,0 +1,65 @@
+---
+
+- name: Create instructor DNS entry
+  route53:
+    record: "{{ instructor_node.tags.WorkshopPublicHostname }}"
+    zone: "{{ route53_hosted_zone }}"
+    type: A
+    ttl: 300
+    value: "{{ instructor_node.public_ip_address }}"
+    state: present
+
+- name: Get bastion nodes facts
+  ec2_instance_facts:
+    instance_ids: "{{ create_ec2_instances_bastion.tagged_instances | map(attribute='id') | list }}"
+  register: facts_bastion_nodes
+
+- name: Create bastion public DNS entries
+  route53:
+    record: "{{ item.tags.WorkshopPublicHostname }}"
+    zone: "{{ route53_hosted_zone }}"
+    type: A
+    ttl: 300
+    value: "{{ item.public_ip_address }}"
+    state: present
+  with_items: "{{ facts_bastion_nodes.instances }}"
+
+- name: Get master nodes facts
+  ec2_instance_facts:
+    instance_ids: "{{ create_ec2_instances_master.tagged_instances | map(attribute='id') | list }}"
+  register: facts_master_nodes
+
+- name: Create master public DNS entries
+  route53:
+    record: "{{ item.tags.WorkshopPublicHostname }}"
+    zone: "{{ route53_hosted_zone }}"
+    type: A
+    ttl: 300
+    value: "{{ item.public_ip_address }}"
+    state: present
+  with_items: "{{ facts_master_nodes.instances }}"
+
+- name: Get infra nodes facts
+  ec2_instance_facts:
+    instance_ids: "{{ create_ec2_instances_infra.tagged_instances | map(attribute='id') | list }}"
+  register: facts_infra_nodes
+
+- name: Create infra wildcard DNS entries
+  route53:
+    record: "{{ item.tags.WorkshopWildcardHostname }}"
+    zone: "{{ route53_hosted_zone }}"
+    type: A
+    ttl: 300
+    value: "{{ item.public_ip_address }}"
+    state: present
+  with_items: "{{ facts_infra_nodes.instances }}"
+
+- name: Create nodes private DNS entries
+  route53:
+    record: "{{ item.tags.WorkshopPrivateHostname }}"
+    zone: "{{ route53_hosted_zone }}"
+    type: A
+    ttl: 300
+    value: "{{ item.private_ip }}"
+    state: present
+  with_items: "{{ master_nodes }} + {{ infra_nodes }} + {{ app_nodes }}"

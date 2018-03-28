@@ -1,0 +1,36 @@
+---
+
+ec2_instance_types:
+  instructor: m4.large
+  bastion: t2.medium
+  master: m4.xlarge
+  infra: m4.xlarge
+  app: m4.large
+
+ec2_instance_count:
+  instructor: 1  # DO NOT CHANGE: playbooks not written to support > 1
+  bastion: 1  # DO NOT CHANGE: playbooks not written to support > 1
+  master: 1  # DO NOT CHANGE: playbooks not written to support > 1
+  infra: 1  # DO NOT CHANGE: playbooks not written to support > 1
+  app: 2
+
+ec2_docker_volume_size: 20
+
+ec2_instance_volume_size:
+  instructor:
+    root: 45
+    nfs: "{{ num_students * 2 }}"  # 2 GB per student
+  bastion:
+    root: 45
+    docker: "{{ ec2_docker_volume_size }}"
+  master:
+    root: 45
+    docker: "{{ ec2_docker_volume_size }}"
+  infra:
+    root: 45
+    docker: "{{ ec2_docker_volume_size }}"
+  app:
+    root: 45
+    docker: "{{ ec2_docker_volume_size }}"
+
+route53_subdomain: "{{ workshop_uid }}.{{ route53_hosted_zone }}"

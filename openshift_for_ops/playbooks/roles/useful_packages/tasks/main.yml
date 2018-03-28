@@ -1,0 +1,19 @@
+---
+
+- name: Install useful packages
+  yum:
+    name: '{{ item }}'
+    state: present
+  with_items:
+    - vim
+    - nano
+    - emacs
+    - screen
+    - tmux
+  become: yes
+
+- name: Update all packages
+  yum:
+    name: '*'
+    state: latest
+  become: yes
